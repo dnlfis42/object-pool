@@ -29,7 +29,13 @@ int main()
 		vec.push_back(obj);
 	}
 
-	wprintf(L"%zu\n", pool.size());
+	if (pool.empty())
+	{
+		wprintf(L"The pool is empty.\n");
+	}
+
+	wprintf(L"capacity: %zu\n", pool.capacity());
+	wprintf(L"size: %zu\n", pool.size());
 
 	for (auto v : vec)
 	{
@@ -38,6 +44,8 @@ int main()
 			__debugbreak();
 		}
 	}
+
+	wprintf(L"available: %zu\n", pool.available());
 
 	if (pool.dealloc(vec[0]))
 	{

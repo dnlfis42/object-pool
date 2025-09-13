@@ -13,6 +13,8 @@ template<class T>
 class ObjectPool
 {
 private:
+	static constexpr size_t MAX_CAPACITY = 20000;
+
 #ifdef OBJECT_POOL_DEBUG_MODE
 	static constexpr unsigned char GUARD = 0xff;
 #endif // OBJECT_POOL_DEBUG_MODE
@@ -32,9 +34,11 @@ private:
 	};
 
 public:
-	ObjectPool(int size) : id_(unique_id()), size_(size), usage_(0)
+	ObjectPool(size_t capacity) : id_(unique_id()), size_(0)
 	{
-		pool_.resize(size);
+		capacity_ = capacity < MAX_CAPACITY ? capacity : MAX_CAPACITY;
+
+		pool_.reserve(capacity);
 
 #ifdef OBJECT_POOL_DEBUG_MODE
 		pre_guard_size = static_cast<int>(reinterpret_cast<char*>(&head_.data) -
@@ -45,7 +49,7 @@ public:
 
 		Node_* node;
 		Node_* prev = &head_;
-		for (size_t i = 0; i < size; ++i)
+		for (size_t i = 0; i < capacity; ++i)
 		{
 			node = new Node_;
 
@@ -58,7 +62,7 @@ public:
 			node->id = id_;
 			node->in_use = 0;
 
-			pool_[i] = node;
+			pool_.push_back(node);
 
 			head_.next = node;
 			prev = node;
@@ -67,51 +71,56 @@ public:
 
 	~ObjectPool()
 	{
-		size_t size = pool_.size();
+		size_t capacity = pool_.capacity();
 
-		for (size_t i = 0; i < size; ++i)
+		for (size_t i = 0; i < capacity; ++i)
 		{
 			delete pool_[i];
 		}
 
 		// option
-		if (usage_ > 0)
+		if (size_ > 0)
 		{
 			// log
 		}
 	}
 
 public:
+	size_t capacity() const noexcept
+	{
+		return capacity_;
+	}
+
+	size_t max_capacity() const noexcept
+	{
+		return MAX_CAPACITY;
+	}
+
 	size_t size() const noexcept
 	{
 		return size_;
 	}
 
-	size_t usage() const noexcept
+	size_t available() const noexcept
 	{
-		return usage_;
-	}
-
-	size_t remain() const noexcept
-	{
-		return size_ - usage_;
+		return capacity_ - size_;
 	}
 
 	bool empty() const noexcept
 	{
-		return (size_ - usage_ == 0);
+		return (capacity_ == size_);
 	}
 
 public:
 	T* alloc()
 	{
 		Node_* node;
-		if (size_ > usage_)
+		if (capacity_ > size_)
 		{
 			node = head_.next;
 			head_.next = node->next;
 		}
-		else
+		else if (capacity_ < MAX_CAPACITY)
 		{
 			node = new Node_;
 
@@ -122,13 +131,17 @@ public:
 
 			node->id = id_;
 			pool_.push_back(node);
-			++size_;
+			++capacity_;
+		}
+		else // 전부 사용
+		{
+			return nullptr;
 		}
 
 		node->next = nullptr;
 		node->in_use = 1;
 
-		++usage_;
+		++size_;
 
 		return &(node->data);
 	}
@@ -172,7 +185,7 @@ public:
 			node->in_use = 0;
 			head_.next = node;
 
-			--usage_;
+			--size_;
 
 			return true;
 		} while (false);
@@ -212,8 +225,8 @@ private:
 private:
 	Node_ head_;
 	unsigned long long id_;
-	size_t size_;
-	size_t usage_;
+	size_t capacity_; // 전체 개수
+	size_t size_; // 사용중인 개수
 	std::vector<Node_*> pool_;
 #ifdef OBJECT_POOL_DEBUG_MODE
 	int pre_guard_size;
