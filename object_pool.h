@@ -34,7 +34,7 @@ private:
 	};
 
 public:
-	ObjectPool(size_t capacity) : id_(unique_id()), size_(0)
+	ObjectPool(size_t capacity = MAX_CAPACITY) : id_(unique_id()), size_(0)
 	{
 		capacity_ = capacity < MAX_CAPACITY ? capacity : MAX_CAPACITY;
 
@@ -201,6 +201,7 @@ private:
 
 	bool check_guard(Node_* node)
 	{
+#ifdef OBJECT_POOL_DEBUG_MODE
 		unsigned char* guard = &(node->pre_guard);
 		for (int i = 0; i < pre_guard_size; ++i)
 		{
@@ -218,6 +219,7 @@ private:
 				return false;
 			}
 		}
+#endif // OBJECT_POOL_DEBUG_MODE
 
 		return true;
 	}
